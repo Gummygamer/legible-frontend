@@ -1,0 +1,146 @@
+-- dashboard.lbl — Multi-component dashboard page
+--
+-- Run with: cd ../legible && cargo run -- run ../legible-frontend/examples/dashboard.lbl
+-- Then open: http://localhost:8080
+
+use html
+use page
+use css
+use component
+use escape
+
+record Response
+  status: integer
+  body: text
+  headers: a mapping from text to text
+end
+
+record Request
+  method: text
+  path: text
+  body: text
+  query: text
+  headers: a mapping from text to text
+end
+
+record Stat
+  label: text
+  value: text
+  change: text
+end
+
+record Activity
+  time: text
+  user: text
+  action: text
+end
+
+function layout_css(): text
+  intent: return the custom CSS for the dashboard layout
+  """.layout { display: flex; min-height: 100vh; }
+.main-area { flex: 1; padding: 1.5rem; }"""
+end
+
+-- Components
+
+function stat_card(stat: Stat): text
+  intent: render a stat card with label value and change indicator
+  html.div({"class": "card"}, html.p({"class": "text-sm text-muted"}, escape.html_escape(stat.label)) ++ html.p({"class": "text-xl font-bold"}, escape.html_escape(stat.value)) ++ html.p({"class": "text-sm"}, escape.html_escape(stat.change)))
+end
+
+function stats_row(stats: a list of Stat): text
+  intent: render a row of stat cards in a flex layout
+  let cards: a list of text = map(stats, fn(s: Stat): text => stat_card(s))
+  html.div({"style": "display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"}, join(cards, ""))
+end
+
+function activity_row(activity: Activity): text
+  intent: render a single activity log row
+  html.tr({}, html.td({}, escape.html_escape(activity.time)) ++ html.td({}, escape.html_escape(activity.user)) ++ html.td({}, escape.html_escape(activity.action)))
+end
+
+function activity_table(activities: a list of Activity): text
+  intent: render the activity log as a table
+  let rows: a list of text = map(activities, fn(a: Activity): text => activity_row(a))
+  html.div({"class": "card"}, html.h3({"class": "mb-1"}, "Recent Activity") ++ html.table({}, html.thead(html.tr({}, html.th({}, "Time") ++ html.th({}, "User") ++ html.th({}, "Action"))) ++ html.tbody(join(rows, ""))))
+end
+
+function sidebar_nav(current_path: text): text
+  intent: render the sidebar navigation with active state
+  let nav_items: a list of text = ["/", "/analytics", "/settings"]
+  let nav_labels: a list of text = ["Dashboard", "Analytics", "Settings"]
+  mutable links: a list of text = []
+  for i in range(0, length(nav_items)) do
+    let item_path: text = unwrap_or(get(nav_items, i), "/")
+    let item_label: text = unwrap_or(get(nav_labels, i), "")
+    let active_class: text = if item_path == current_path then "font-bold" else "" end
+    let link: text = html.li({"class": "mb-1"}, html.a_link(item_path, {"class": active_class}, item_label))
+    set links = append(links, link)
+  end
+  html.nav({"class": "p-2", "style": "min-width: 200px; background: white; border-right: 1px solid #ddd;"}, html.h3({"class": "mb-2 p-1"}, "Navigation") ++ html.ul({"class": "list-none"}, join(links, "")))
+end
+
+function dashboard_page(): text
+  intent: render the main dashboard page with stats and activity
+  let stats: a list of Stat = [
+    Stat { label: "Total Users", value: "1,234", change: "+12% this month" },
+    Stat { label: "Active Sessions", value: "567", change: "+5% today" },
+    Stat { label: "Revenue", value: "$12,345", change: "+8% this quarter" },
+    Stat { label: "Uptime", value: "99.9%", change: "Last 30 days" }
+  ]
+  let activities: a list of Activity = [
+    Activity { time: "2 min ago", user: "Alice", action: "Deployed v2.3.1 to production" },
+    Activity { time: "15 min ago", user: "Bob", action: "Merged PR #42: Fix auth flow" },
+    Activity { time: "1 hour ago", user: "Carol", action: "Created issue: Update docs" },
+    Activity { time: "2 hours ago", user: "Dave", action: "Rolled back deployment v2.3.0" },
+    Activity { time: "3 hours ago", user: "Eve", action: "Updated database schema" }
+  ]
+  let custom_css: text = layout_css()
+  let main_area: text = html.div({"class": "main-area"}, html.h1({"class": "mb-2"}, "Dashboard") ++ stats_row(stats) ++ html.div({"class": "mt-2"}, activity_table(activities)))
+  let layout: text = html.div({"class": "layout"}, sidebar_nav("/") ++ main_area)
+  page.page_with_styles("Dashboard — Legible Frontend", custom_css, layout)
+end
+
+function analytics_page(): text
+  intent: render a placeholder analytics page
+  let custom_css: text = layout_css()
+  let content: text = html.div({"class": "main-area"}, html.h1({"class": "mb-2"}, "Analytics") ++ html.div({"class": "card"}, html.p({}, "Analytics charts would go here. This is a demonstration of multi-page navigation with shared layout components.")))
+  page.page_with_styles("Analytics — Legible Frontend", custom_css, html.div({"class": "layout"}, sidebar_nav("/analytics") ++ content))
+end
+
+function settings_page(): text
+  intent: render a placeholder settings page
+  let custom_css: text = layout_css()
+  let content: text = html.div({"class": "main-area"}, html.h1({"class": "mb-2"}, "Settings") ++ html.div({"class": "card"}, html.p({}, "Settings form would go here.")))
+  page.page_with_styles("Settings — Legible Frontend", custom_css, html.div({"class": "layout"}, sidebar_nav("/settings") ++ content))
+end
+
+function not_found_page(path: text): text
+  intent: render a 404 page
+  page.page("Not Found", "", html.div({"class": "container p-3 text-center"}, html.h1({}, "404") ++ html.p({"class": "text-muted"}, "Page not found: " ++ html.code_element(path)) ++ html.p({"class": "mt-2"}, html.a_link("/", {}, "Back to Dashboard"))))
+end
+
+function handle_request(method: text, path: text): Response
+  intent: route requests to the appropriate page handler
+  if path == "/" then
+    Response { status: 200, body: dashboard_page(), headers: {"content-type": "text/html; charset=utf-8"} }
+  else if path == "/analytics" then
+    Response { status: 200, body: analytics_page(), headers: {"content-type": "text/html; charset=utf-8"} }
+  else if path == "/settings" then
+    Response { status: 200, body: settings_page(), headers: {"content-type": "text/html; charset=utf-8"} }
+  else
+    Response { status: 404, body: not_found_page(path), headers: {"content-type": "text/html; charset=utf-8"} }
+  end
+end
+
+function main(): nothing
+  intent: start the dashboard web server on port 8080
+  http_start(8080)
+  log("info", "Dashboard running at http://localhost:8080")
+  while true do
+    let request: Request = http_next_request()
+    let resp: Response = handle_request(request.method, request.path)
+    http_respond_with_headers(resp.status, resp.headers, resp.body)
+    log("info", request.method ++ " " ++ request.path ++ " -> " ++ to_text(resp.status))
+  end
+end

@@ -1,0 +1,65 @@
+-- hello_page.lbl — Minimal HTML page served by Legible Frontend
+--
+-- Run with: cd ../legible && cargo run -- run ../legible-frontend/examples/hello_page.lbl
+-- Then open: http://localhost:8080
+
+use html
+use page
+use css
+use component
+
+record Response
+  status: integer
+  body: text
+  headers: a mapping from text to text
+end
+
+function home_page(): text
+  intent: render a welcome page with styled content
+  let hero: text = html.div({"class": "text-center p-3"}, html.h1({}, "Welcome to Legible Frontend") ++ html.p({"class": "text-muted mt-2"}, "A server-rendered web framework written in the Legible programming language.") ++ html.div({"class": "mt-2"}, html.a_link("/about", {"class": "btn btn-primary"}, "Learn More")))
+  let features: text = html.div({"class": "container mt-2"}, html.h2({"class": "mb-2"}, "Features") ++ html.ul({}, html.li({}, "Server-side HTML generation with type-safe components") ++ html.li({}, "Pipeline-friendly API for composing views") ++ html.li({}, "Built-in CSS utility classes") ++ html.li({}, "Form handling with CSRF protection") ++ html.li({}, "HTMX support for partial page updates")))
+  page.page("Legible Frontend", "", html.div({"class": "container p-3"}, hero ++ features))
+end
+
+function about_page(): text
+  intent: render an about page with project information
+  let content: text = html.div({"class": "container p-3"}, html.h1({}, "About Legible Frontend") ++ html.p({"class": "mt-2"}, "Legible is a programming language designed for clarity and readability. This frontend framework demonstrates how Legible can generate web pages with a clean, functional API.") ++ html.p({"class": "mt-2"}, html.a_link("/", {}, "Back to Home")))
+  page.page("About — Legible Frontend", "", content)
+end
+
+function not_found_page(path: text): text
+  intent: render a 404 page for unknown routes
+  let content: text = html.div({"class": "container p-3 text-center"}, html.h1({}, "404 — Not Found") ++ html.p({"class": "text-muted mt-2"}, "The page " ++ html.code_element(path) ++ " does not exist.") ++ html.p({"class": "mt-2"}, html.a_link("/", {}, "Go Home")))
+  page.page("Not Found", "", content)
+end
+
+function handle_request(method: text, path: text): Response
+  intent: route requests to the appropriate page handler
+  if path == "/" then
+    Response { status: 200, body: home_page(), headers: {"content-type": "text/html; charset=utf-8"} }
+  else if path == "/about" then
+    Response { status: 200, body: about_page(), headers: {"content-type": "text/html; charset=utf-8"} }
+  else
+    Response { status: 404, body: not_found_page(path), headers: {"content-type": "text/html; charset=utf-8"} }
+  end
+end
+
+function main(): nothing
+  intent: start the hello page web server on port 8080
+  http_start(8080)
+  log("info", "Hello Page running at http://localhost:8080")
+  while true do
+    let request: Request = http_next_request()
+    let resp: Response = handle_request(request.method, request.path)
+    http_respond_with_headers(resp.status, resp.headers, resp.body)
+    log("info", request.method ++ " " ++ request.path ++ " -> " ++ to_text(resp.status))
+  end
+end
+
+record Request
+  method: text
+  path: text
+  body: text
+  query: text
+  headers: a mapping from text to text
+end

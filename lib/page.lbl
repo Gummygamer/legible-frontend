@@ -1,0 +1,19 @@
+-- page.lbl — Full HTML page scaffold
+
+use css
+
+public function page(title: text, head_extra: text, body_content: text): text
+  intent: create a complete HTML5 page with doctype head and body
+  "<!DOCTYPE html>" ++ "<html lang=\"en\">" ++ "<head>" ++ "<meta charset=\"utf-8\" />" ++ "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" ++ "<title>" ++ title ++ "</title>" ++ css.style_block(css.base_styles()) ++ head_extra ++ "</head>" ++ "<body>" ++ body_content ++ "</body>" ++ "</html>"
+end
+
+public function page_with_htmx(title: text, head_extra: text, body_content: text): text
+  intent: create an HTML5 page that includes the HTMX library
+  let htmx_script: text = "<script src=\"https://unpkg.com/htmx.org@1.9.12\"></script>"
+  page(title, htmx_script ++ head_extra, body_content)
+end
+
+public function page_with_styles(title: text, custom_css: text, body_content: text): text
+  intent: create an HTML5 page with custom CSS added to the head
+  page(title, css.style_block(custom_css), body_content)
+end

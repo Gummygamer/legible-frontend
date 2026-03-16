@@ -1,0 +1,24 @@
+-- escape.lbl — HTML and URL escaping for XSS prevention
+
+public function html_escape(content: text): text
+  intent: escape HTML special characters to prevent XSS injection
+  content
+    |> replace("&", "&amp;")
+    |> replace("<", "&lt;")
+    |> replace(">", "&gt;")
+    |> replace("\"", "&quot;")
+    |> replace("'", "&#39;")
+end
+
+public function url_encode_value(value: text): text
+  intent: encode a value for safe inclusion in URL query parameters
+  value
+    |> replace("%", "%25")
+    |> replace(" ", "+")
+    |> replace("&", "%26")
+    |> replace("=", "%3D")
+    |> replace("+", "%2B")
+    |> replace("/", "%2F")
+    |> replace("?", "%3F")
+    |> replace("#", "%23")
+end

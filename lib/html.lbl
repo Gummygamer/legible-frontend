@@ -1,0 +1,259 @@
+-- html.lbl — HTML element builder functions
+
+use escape
+
+public function attrs_to_text(attrs: a mapping from text to text): text
+  intent: convert a mapping of attributes to an HTML attribute string
+  let attr_keys: a list of text = keys(attrs)
+  if length(attr_keys) == 0 then
+    return ""
+  end
+  let parts: a list of text = map(
+    attr_keys,
+    fn(k: text): text => " " ++ k ++ "=\"" ++ escape.html_escape(unwrap_or(get(attrs, k), "")) ++ "\""
+  )
+  join(parts, "")
+end
+
+public function merge_attrs(base: a mapping from text to text, extra: a mapping from text to text): a mapping from text to text
+  intent: merge two attribute mappings with extra overriding base
+  let extra_keys: a list of text = keys(extra)
+  mutable result: a mapping from text to text = base
+  for k in extra_keys do
+    set result = put(result, k, unwrap_or(get(extra, k), ""))
+  end
+  result
+end
+
+public function element(tag: text, attrs: a mapping from text to text, content: text): text
+  intent: create an HTML element with tag attributes and content
+  "<" ++ tag ++ attrs_to_text(attrs) ++ ">" ++ content ++ "</" ++ tag ++ ">"
+end
+
+public function void_element(tag: text, attrs: a mapping from text to text): text
+  intent: create a self-closing HTML element
+  "<" ++ tag ++ attrs_to_text(attrs) ++ " />"
+end
+
+public function raw(content: text): text
+  intent: pass content through without escaping for trusted HTML
+  content
+end
+
+public function text_node(content: text): text
+  intent: create an escaped text node safe for HTML rendering
+  escape.html_escape(content)
+end
+
+-- Block elements
+
+public function div(attrs: a mapping from text to text, content: text): text
+  intent: create a div element
+  element("div", attrs, content)
+end
+
+public function section(attrs: a mapping from text to text, content: text): text
+  intent: create a section element
+  element("section", attrs, content)
+end
+
+public function article(attrs: a mapping from text to text, content: text): text
+  intent: create an article element
+  element("article", attrs, content)
+end
+
+public function header(attrs: a mapping from text to text, content: text): text
+  intent: create a header element
+  element("header", attrs, content)
+end
+
+public function footer(attrs: a mapping from text to text, content: text): text
+  intent: create a footer element
+  element("footer", attrs, content)
+end
+
+public function nav(attrs: a mapping from text to text, content: text): text
+  intent: create a nav element
+  element("nav", attrs, content)
+end
+
+public function main_content(attrs: a mapping from text to text, content: text): text
+  intent: create a main element
+  element("main", attrs, content)
+end
+
+public function aside(attrs: a mapping from text to text, content: text): text
+  intent: create an aside element
+  element("aside", attrs, content)
+end
+
+-- Inline elements
+
+public function span(attrs: a mapping from text to text, content: text): text
+  intent: create a span element
+  element("span", attrs, content)
+end
+
+public function strong(content: text): text
+  intent: create a strong element for bold text
+  element("strong", {}, content)
+end
+
+public function em(content: text): text
+  intent: create an em element for italic text
+  element("em", {}, content)
+end
+
+public function a_link(href: text, attrs: a mapping from text to text, content: text): text
+  intent: create an anchor link element
+  element("a", merge_attrs({"href": href}, attrs), content)
+end
+
+public function code_element(content: text): text
+  intent: create a code element for inline code
+  element("code", {}, escape.html_escape(content))
+end
+
+-- Text elements
+
+public function h1(attrs: a mapping from text to text, content: text): text
+  intent: create an h1 heading element
+  element("h1", attrs, content)
+end
+
+public function h2(attrs: a mapping from text to text, content: text): text
+  intent: create an h2 heading element
+  element("h2", attrs, content)
+end
+
+public function h3(attrs: a mapping from text to text, content: text): text
+  intent: create an h3 heading element
+  element("h3", attrs, content)
+end
+
+public function h4(attrs: a mapping from text to text, content: text): text
+  intent: create an h4 heading element
+  element("h4", attrs, content)
+end
+
+public function h5(attrs: a mapping from text to text, content: text): text
+  intent: create an h5 heading element
+  element("h5", attrs, content)
+end
+
+public function h6(attrs: a mapping from text to text, content: text): text
+  intent: create an h6 heading element
+  element("h6", attrs, content)
+end
+
+public function p(attrs: a mapping from text to text, content: text): text
+  intent: create a paragraph element
+  element("p", attrs, content)
+end
+
+public function pre(attrs: a mapping from text to text, content: text): text
+  intent: create a pre element for preformatted text
+  element("pre", attrs, escape.html_escape(content))
+end
+
+public function blockquote(attrs: a mapping from text to text, content: text): text
+  intent: create a blockquote element
+  element("blockquote", attrs, content)
+end
+
+-- List elements
+
+public function ul(attrs: a mapping from text to text, content: text): text
+  intent: create an unordered list element
+  element("ul", attrs, content)
+end
+
+public function ol(attrs: a mapping from text to text, content: text): text
+  intent: create an ordered list element
+  element("ol", attrs, content)
+end
+
+public function li(attrs: a mapping from text to text, content: text): text
+  intent: create a list item element
+  element("li", attrs, content)
+end
+
+-- Media elements
+
+public function img(src: text, alt: text, attrs: a mapping from text to text): text
+  intent: create an img element with src and alt attributes
+  void_element("img", merge_attrs({"src": src, "alt": alt}, attrs))
+end
+
+-- Table elements
+
+public function table(attrs: a mapping from text to text, content: text): text
+  intent: create a table element
+  element("table", attrs, content)
+end
+
+public function thead(content: text): text
+  intent: create a thead element
+  element("thead", {}, content)
+end
+
+public function tbody(content: text): text
+  intent: create a tbody element
+  element("tbody", {}, content)
+end
+
+public function tr(attrs: a mapping from text to text, content: text): text
+  intent: create a table row element
+  element("tr", attrs, content)
+end
+
+public function th(attrs: a mapping from text to text, content: text): text
+  intent: create a table header cell element
+  element("th", attrs, content)
+end
+
+public function td(attrs: a mapping from text to text, content: text): text
+  intent: create a table data cell element
+  element("td", attrs, content)
+end
+
+-- Form elements
+
+public function form_element(attrs: a mapping from text to text, content: text): text
+  intent: create a form element
+  element("form", attrs, content)
+end
+
+public function input(attrs: a mapping from text to text): text
+  intent: create an input element
+  void_element("input", attrs)
+end
+
+public function textarea(attrs: a mapping from text to text, content: text): text
+  intent: create a textarea element
+  element("textarea", attrs, escape.html_escape(content))
+end
+
+public function select_element(attrs: a mapping from text to text, content: text): text
+  intent: create a select element
+  element("select", attrs, content)
+end
+
+public function option(value: text, label_text: text, selected: boolean): text
+  intent: create an option element with value and selected state
+  if selected then
+    element("option", {"value": value, "selected": "selected"}, escape.html_escape(label_text))
+  else
+    element("option", {"value": value}, escape.html_escape(label_text))
+  end
+end
+
+public function button(attrs: a mapping from text to text, content: text): text
+  intent: create a button element
+  element("button", attrs, content)
+end
+
+public function label_element(for_id: text, content: text): text
+  intent: create a label element linked to a form field
+  element("label", {"for": for_id}, content)
+end

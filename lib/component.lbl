@@ -1,0 +1,56 @@
+-- component.lbl — Component composition helpers
+
+use html
+use escape
+
+public function render_if(condition: boolean, content: text): text
+  intent: conditionally render content or return empty string
+  if condition then
+    content
+  else
+    ""
+  end
+end
+
+public function render_each(items: a list of text, renderer: fn(text): text): text
+  intent: map items through a renderer function and join the HTML
+  let rendered: a list of text = map(items, renderer)
+  join(rendered, "")
+end
+
+public function render_list(items: a list of text): text
+  intent: render a list of items as an unordered HTML list
+  let list_items: a list of text = map(
+    items,
+    fn(item: text): text => html.li({}, escape.html_escape(item))
+  )
+  html.ul({"class": "list-none"}, join(list_items, ""))
+end
+
+public function render_table(headers: a list of text, rows: a list of a list of text): text
+  intent: render a data table with headers and rows
+  let header_cells: a list of text = map(
+    headers,
+    fn(h: text): text => html.th({}, escape.html_escape(h))
+  )
+  let header_row: text = html.tr({}, join(header_cells, ""))
+  let body_rows: a list of text = map(
+    rows,
+    fn(row: a list of text): text => render_table_row(row)
+  )
+  html.table({}, html.thead(header_row) ++ html.tbody(join(body_rows, "")))
+end
+
+public function render_table_row(cells: a list of text): text
+  intent: render a single table row from a list of cell values
+  let cell_elements: a list of text = map(
+    cells,
+    fn(cell: text): text => html.td({}, escape.html_escape(cell))
+  )
+  html.tr({}, join(cell_elements, ""))
+end
+
+public function fragment(parts: a list of text): text
+  intent: join multiple HTML fragments into one string
+  join(parts, "")
+end

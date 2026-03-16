@@ -1,0 +1,53 @@
+-- htmx.lbl — HTMX attribute helpers for partial page updates
+
+use html
+
+public function hx_get(url: text): a mapping from text to text
+  intent: create HTMX attributes for a GET request
+  {"hx-get": url}
+end
+
+public function hx_post(url: text): a mapping from text to text
+  intent: create HTMX attributes for a POST request
+  {"hx-post": url}
+end
+
+public function hx_put(url: text): a mapping from text to text
+  intent: create HTMX attributes for a PUT request
+  {"hx-put": url}
+end
+
+public function hx_delete(url: text): a mapping from text to text
+  intent: create HTMX attributes for a DELETE request
+  {"hx-delete": url}
+end
+
+public function hx_target(selector: text): a mapping from text to text
+  intent: create HTMX target attribute for response placement
+  {"hx-target": selector}
+end
+
+public function hx_swap(strategy: text): a mapping from text to text
+  intent: create HTMX swap strategy attribute
+  {"hx-swap": strategy}
+end
+
+public function hx_trigger(event: text): a mapping from text to text
+  intent: create HTMX trigger attribute for custom events
+  {"hx-trigger": event}
+end
+
+public function hx_confirm(message: text): a mapping from text to text
+  intent: create HTMX confirm attribute for user confirmation
+  {"hx-confirm": message}
+end
+
+public function hx_indicator(selector: text): a mapping from text to text
+  intent: create HTMX indicator attribute for loading state
+  {"hx-indicator": selector}
+end
+
+public function hx_button(label_text: text, attrs: a mapping from text to text): text
+  intent: create a button element with HTMX attributes
+  html.button(html.merge_attrs({"class": "btn btn-primary"}, attrs), label_text)
+end

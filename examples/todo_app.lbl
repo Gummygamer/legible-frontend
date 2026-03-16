@@ -1,0 +1,146 @@
+-- todo_app.lbl — Full CRUD todo application with forms and server state
+--
+-- Run with: cd ../legible && cargo run -- run ../legible-frontend/examples/todo_app.lbl
+-- Then open: http://localhost:8080
+--
+-- Features:
+--   GET  /          — List all todos with add form
+--   POST /add       — Add a new todo
+--   POST /toggle    — Toggle todo completion
+--   POST /delete    — Delete a todo
+
+use html
+use page
+use css
+use form
+use escape
+use component
+
+record Response
+  status: integer
+  body: text
+  headers: a mapping from text to text
+end
+
+record Request
+  method: text
+  path: text
+  body: text
+  query: text
+  headers: a mapping from text to text
+end
+
+record Todo
+  id: integer
+  title: text
+  done: boolean
+end
+
+function render_todo_item(todo: Todo): text
+  intent: render a single todo item with toggle and delete controls
+  let done_class: text = if todo.done then "text-muted" else ""  end
+  let done_style: text = if todo.done then "text-decoration: line-through;" else "" end
+  let toggle_label: text = if todo.done then "Undo" else "Done" end
+  let toggle_form: text = form.form_post("/toggle", html.input({"type": "hidden", "name": "id", "value": to_text(todo.id)}) ++ html.button({"type": "submit", "class": "btn btn-sm btn-primary"}, toggle_label))
+  let delete_form: text = form.form_post("/delete", html.input({"type": "hidden", "name": "id", "value": to_text(todo.id)}) ++ html.button({"type": "submit", "class": "btn btn-sm btn-danger"}, "Delete"))
+  html.li({"class": "flex items-center justify-between p-1 border rounded mb-1", "style": done_style}, html.span({"class": done_class}, escape.html_escape(todo.title)) ++ html.div({"class": "flex gap-1"}, toggle_form ++ delete_form))
+end
+
+function render_todo_list(todos: a list of Todo): text
+  intent: render the complete todo list page with add form
+  let total: integer = length(todos)
+  let done_count: integer = length(filter(todos, fn(t: Todo): boolean => t.done))
+  let stats: text = html.p({"class": "text-muted text-sm mb-2"}, to_text(done_count) ++ " of " ++ to_text(total) ++ " completed")
+  let todo_items: a list of text = map(todos, fn(t: Todo): text => render_todo_item(t))
+  let list_content: text = if total == 0 then
+    html.p({"class": "text-muted text-center p-2"}, "No todos yet. Add one below!")
+  else
+    html.ul({"class": "list-none"}, join(todo_items, ""))
+  end
+  let add_form: text = form.form_post("/add", html.div({"class": "flex gap-1"}, html.input({"type": "text", "name": "title", "placeholder": "What needs to be done?", "class": "form-control", "required": "required"}) ++ html.button({"type": "submit", "class": "btn btn-primary"}, "Add")))
+  let body_content: text = html.div({"class": "container p-3"}, html.h1({"class": "mb-2"}, "Todo App") ++ stats ++ html.div({"class": "card mb-2"}, list_content) ++ add_form)
+  page.page("Todo App — Legible Frontend", "", body_content)
+end
+
+function find_todo_by_id(todos: a list of Todo, id: integer): an optional Todo
+  intent: find a todo in the list by its id
+  find(todos, fn(t: Todo): boolean => t.id == id)
+end
+
+function handle_add(body: text, todos: a list of Todo, next_id: integer): a list of Todo
+  intent: parse form body and add a new todo to the list
+  let data: a mapping from text to text = form.parse_form_body(body)
+  let title: text = trim(form.get_field(data, "title"))
+  if text_length(title) == 0 then
+    return todos
+  end
+  let new_todo: Todo = Todo { id: next_id, title: title, done: false }
+  append(todos, new_todo)
+end
+
+function handle_toggle(body: text, todos: a list of Todo): a list of Todo
+  intent: parse form body and toggle the done status of a todo
+  let data: a mapping from text to text = form.parse_form_body(body)
+  let id_text: text = form.get_field(data, "id")
+  let id_opt: an optional integer = to_integer(id_text)
+  if is_none(id_opt) then
+    return todos
+  end
+  let target_id: integer = unwrap(id_opt)
+  map(todos, fn(t: Todo): Todo => if t.id == target_id then
+    t with { done: not t.done }
+  else
+    t
+  end)
+end
+
+function handle_delete(body: text, todos: a list of Todo): a list of Todo
+  intent: parse form body and remove a todo by its id
+  let data: a mapping from text to text = form.parse_form_body(body)
+  let id_text: text = form.get_field(data, "id")
+  let id_opt: an optional integer = to_integer(id_text)
+  if is_none(id_opt) then
+    return todos
+  end
+  let target_id: integer = unwrap(id_opt)
+  filter(todos, fn(t: Todo): boolean => t.id != target_id)
+end
+
+function html_response(status: integer, body: text): Response
+  intent: create an HTML response with proper content type
+  Response { status: status, body: body, headers: {"content-type": "text/html; charset=utf-8"} }
+end
+
+function redirect_response(location: text): Response
+  intent: create a redirect response to the given location
+  Response { status: 303, body: "", headers: {"location": location, "content-type": "text/html; charset=utf-8"} }
+end
+
+function main(): nothing
+  intent: start the todo app server with mutable state
+  http_start(8080)
+  log("info", "Todo App running at http://localhost:8080")
+  mutable todos: a list of Todo = []
+  mutable next_id: integer = 1
+  while true do
+    let request: Request = http_next_request()
+    let start_time: integer = current_time_ms()
+    mutable resp: Response = html_response(404, "Not Found")
+    if request.method == "GET" and request.path == "/" then
+      set resp = html_response(200, render_todo_list(todos))
+    else if request.method == "POST" and request.path == "/add" then
+      set todos = handle_add(request.body, todos, next_id)
+      set next_id = next_id + 1
+      set resp = redirect_response("/")
+    else if request.method == "POST" and request.path == "/toggle" then
+      set todos = handle_toggle(request.body, todos)
+      set resp = redirect_response("/")
+    else if request.method == "POST" and request.path == "/delete" then
+      set todos = handle_delete(request.body, todos)
+      set resp = redirect_response("/")
+    end
+    http_respond_with_headers(resp.status, resp.headers, resp.body)
+    let elapsed: integer = current_time_ms() - start_time
+    log("info", request.method ++ " " ++ request.path ++ " -> " ++ to_text(resp.status) ++ " (" ++ to_text(elapsed) ++ "ms) [" ++ to_text(length(todos)) ++ " todos]")
+  end
+end

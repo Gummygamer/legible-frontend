@@ -1,0 +1,86 @@
+-- form.lbl — Form builder with CSRF protection and field helpers
+
+use html
+use escape
+
+public function form_post(action: text, content: text): text
+  intent: create a POST form with a CSRF token hidden field
+  let csrf_token: text = random_hex(32)
+  let hidden_field: text = html.input({"type": "hidden", "name": "_csrf", "value": csrf_token})
+  html.form_element({"method": "post", "action": action}, hidden_field ++ content)
+end
+
+public function form_get(action: text, content: text): text
+  intent: create a GET form for search or filter purposes
+  html.form_element({"method": "get", "action": action}, content)
+end
+
+public function text_input(name: text, label_text: text, value: text): text
+  intent: create a labeled text input field with form-group styling
+  let field_id: text = "field-" ++ name
+  html.div({"class": "form-group"}, html.label_element(field_id, escape.html_escape(label_text)) ++ html.input({"type": "text", "id": field_id, "name": name, "value": value, "class": "form-control"}))
+end
+
+public function password_input(name: text, label_text: text): text
+  intent: create a labeled password input field
+  let field_id: text = "field-" ++ name
+  html.div({"class": "form-group"}, html.label_element(field_id, escape.html_escape(label_text)) ++ html.input({"type": "password", "id": field_id, "name": name, "class": "form-control"}))
+end
+
+public function email_input(name: text, label_text: text, value: text): text
+  intent: create a labeled email input field
+  let field_id: text = "field-" ++ name
+  html.div({"class": "form-group"}, html.label_element(field_id, escape.html_escape(label_text)) ++ html.input({"type": "email", "id": field_id, "name": name, "value": value, "class": "form-control"}))
+end
+
+public function textarea_field(name: text, label_text: text, value: text, rows: integer): text
+  intent: create a labeled textarea field
+  let field_id: text = "field-" ++ name
+  html.div({"class": "form-group"}, html.label_element(field_id, escape.html_escape(label_text)) ++ html.textarea({"id": field_id, "name": name, "rows": to_text(rows), "class": "form-control"}, value))
+end
+
+public function checkbox(name: text, label_text: text, checked: boolean): text
+  intent: create a labeled checkbox input
+  let field_id: text = "field-" ++ name
+  let attrs: a mapping from text to text = if checked then
+    {"type": "checkbox", "id": field_id, "name": name, "value": "on", "checked": "checked"}
+  else
+    {"type": "checkbox", "id": field_id, "name": name, "value": "on"}
+  end
+  html.div({"class": "form-group"}, html.input(attrs) ++ " " ++ html.label_element(field_id, escape.html_escape(label_text)))
+end
+
+public function submit_button(label_text: text): text
+  intent: create a submit button with primary styling
+  html.button({"type": "submit", "class": "btn btn-primary"}, escape.html_escape(label_text))
+end
+
+public function parse_form_body(body: text): a mapping from text to text
+  intent: parse URL-encoded form body into key-value pairs
+  if text_length(body) == 0 then
+    return {}
+  end
+  let pairs: a list of text = split(body, "&")
+  mutable result: a mapping from text to text = {}
+  for pair in pairs do
+    if contains_text(pair, "=") then
+      let parts: a list of text = split(pair, "=")
+      if length(parts) >= 2 then
+        let key: text = url_decode(unwrap_or(get(parts, 0), ""))
+        let val: text = url_decode(unwrap_or(get(parts, 1), ""))
+        set result = put(result, key, val)
+      end
+    end
+  end
+  result
+end
+
+public function get_field(form_data: a mapping from text to text, name: text): text
+  intent: get a form field value with empty string as default
+  unwrap_or(get(form_data, name), "")
+end
+
+public function has_field(form_data: a mapping from text to text, name: text): boolean
+  intent: check if a form field was submitted
+  has_key(form_data, name)
+end
