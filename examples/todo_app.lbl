@@ -36,6 +36,12 @@ record Todo
   done: boolean
 end
 
+record Routed
+  todos: a list of Todo
+  next_id: integer
+  response: Response
+end
+
 function render_todo_item(todo: Todo): text
   intent: render a single todo item with toggle and delete controls
   let done_class: text = if todo.done then "text-muted" else ""  end
@@ -116,6 +122,21 @@ function redirect_response(location: text): Response
   Response { status: 303, body: "", headers: {"location": location, "content-type": "text/html; charset=utf-8"} }
 end
 
+function route_request(request: Request, todos: a list of Todo, next_id: integer): Routed
+  intent: dispatch a request to the matching todo handler and return the new state with the response
+  if request.method == "GET" and request.path == "/" then
+    Routed { todos: todos, next_id: next_id, response: html_response(200, render_todo_list(todos)) }
+  else if request.method == "POST" and request.path == "/add" then
+    Routed { todos: handle_add(request.body, todos, next_id), next_id: next_id + 1, response: redirect_response("/") }
+  else if request.method == "POST" and request.path == "/toggle" then
+    Routed { todos: handle_toggle(request.body, todos), next_id: next_id, response: redirect_response("/") }
+  else if request.method == "POST" and request.path == "/delete" then
+    Routed { todos: handle_delete(request.body, todos), next_id: next_id, response: redirect_response("/") }
+  else
+    Routed { todos: todos, next_id: next_id, response: html_response(404, "Not Found") }
+  end
+end
+
 function main(): nothing
   intent: start the todo app server with mutable state
   http_start(8080)
@@ -125,22 +146,11 @@ function main(): nothing
   while true do
     let request: Request = http_next_request()
     let start_time: integer = current_time_ms()
-    mutable resp: Response = html_response(404, "Not Found")
-    if request.method == "GET" and request.path == "/" then
-      set resp = html_response(200, render_todo_list(todos))
-    else if request.method == "POST" and request.path == "/add" then
-      set todos = handle_add(request.body, todos, next_id)
-      set next_id = next_id + 1
-      set resp = redirect_response("/")
-    else if request.method == "POST" and request.path == "/toggle" then
-      set todos = handle_toggle(request.body, todos)
-      set resp = redirect_response("/")
-    else if request.method == "POST" and request.path == "/delete" then
-      set todos = handle_delete(request.body, todos)
-      set resp = redirect_response("/")
-    end
-    http_respond_with_headers(resp.status, resp.headers, resp.body)
+    let routed: Routed = route_request(request, todos, next_id)
+    set todos = routed.todos
+    set next_id = routed.next_id
+    http_respond_with_headers(routed.response.status, routed.response.headers, routed.response.body)
     let elapsed: integer = current_time_ms() - start_time
-    log("info", request.method ++ " " ++ request.path ++ " -> " ++ to_text(resp.status) ++ " (" ++ to_text(elapsed) ++ "ms) [" ++ to_text(length(todos)) ++ " todos]")
+    log("info", request.method ++ " " ++ request.path ++ " -> " ++ to_text(routed.response.status) ++ " (" ++ to_text(elapsed) ++ "ms) [" ++ to_text(length(todos)) ++ " todos]")
   end
 end
